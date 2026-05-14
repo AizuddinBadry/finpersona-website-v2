@@ -7,20 +7,33 @@ import {Calendar, Trophy, ChevronRight} from "lucide-react";
 // NOTE: metadata can't be exported from "use client" — set in parent or via generateMetadata.
 // Title is handled by layout template.
 
+interface Prize {
+  place: number;
+  amount: number;
+  currency: string;
+}
+
 interface FpEvent {
   id: string;
   slug: string;
   title: string;
   description: string;
-  tagline?: string;
   image_url?: string;
   start_date: string;
   end_date: string;
   is_active: boolean;
-  is_featured: boolean;
-  prize_pool?: number;
+  prizes?: Prize[];
   event_type?: string;
-  banner_color?: string;
+  ranking_method?: string;
+}
+
+interface LeaderboardRpc {
+  rank: number;
+  user_id: string;
+  display_name: string;
+  event_points: number;
+  qualified_receipt_count: number;
+  qualified_receipt_value: number;
 }
 
 interface LeaderboardRow {
@@ -28,7 +41,6 @@ interface LeaderboardRow {
   event_id: string;
   display_name: string;
   initials: string;
-  location?: string;
   score: number;
   receipts_count: number;
   rank: number;
@@ -86,26 +98,29 @@ export default function EventsPage() {
         const list: FpEvent[] = eventsData ?? [];
         setEvents(list);
 
-        // Only feature a live or upcoming event — never a past one
         const feat =
-          list.find(e => e.is_featured && eventStatus(e.start_date, e.end_date) !== "ended") ??
           list.find(e => eventStatus(e.start_date, e.end_date) === "live") ??
+          list.find(e => eventStatus(e.start_date, e.end_date) === "upcoming") ??
           null;
         setFeatured(feat);
 
         if (feat) {
-          const [{data: lb}, {count}] = await Promise.all([
-            sb.from("event_leaderboard")
-              .select("*")
-              .eq("event_id", feat.id)
-              .order("rank", {ascending: true})
-              .limit(50),
-            sb.from("event_participants")
-              .select("*", {count: "exact", head: true})
-              .eq("event_id", feat.id),
+          const [{data: lbRaw}, countRes] = await Promise.all([
+            sb.rpc("get_event_leaderboard", {p_event_id: feat.id}),
+            fetch(`/api/event-participants/${feat.id}`).then(r => r.json()).catch(() => ({count: 0})),
           ]);
-          setLeaderboard((lb ?? []) as LeaderboardRow[]);
-          setParticipantCount(count ?? 0);
+          const lbRows: LeaderboardRow[] = ((lbRaw ?? []) as LeaderboardRpc[]).map(r => ({
+            id: r.user_id,
+            event_id: feat.id,
+            display_name: r.display_name,
+            initials: r.display_name.charAt(0).toUpperCase(),
+            score: r.event_points,
+            receipts_count: r.qualified_receipt_count,
+            rank: r.rank,
+            is_current_user: false,
+          }));
+          setLeaderboard(lbRows);
+          setParticipantCount(countRes.count ?? lbRows.length);
         }
       } catch (e) {
         console.error(e);
@@ -151,14 +166,14 @@ export default function EventsPage() {
                       <span className="live-dot" />
                       {eventStatus(featured.start_date, featured.end_date) === "live" ? "Live · Featured contest" : "Featured contest"}
                     </span>
-                    <h2>{featured.title.includes("<em>") ? <span dangerouslySetInnerHTML={{__html: featured.title}} /> : featured.title}</h2>
-                    <p className="featured-tagline">{featured.tagline ?? featured.description}</p>
+                    <h2>{featured.title}</h2>
+                    <p className="featured-tagline">{featured.description}</p>
                   </div>
                   <div className="featured-meta">
-                    {featured.prize_pool && (
+                    {featured.prizes && featured.prizes.length > 0 && (
                       <div className="meta-cell">
                         <span className="meta-label">Total prize pool</span>
-                        <span className="meta-value">RM {featured.prize_pool.toLocaleString()}</span>
+                        <span className="meta-value">RM {featured.prizes.reduce((s,p)=>s+p.amount,0).toLocaleString()}</span>
                       </div>
                     )}
                     {participantCount > 0 && (
@@ -186,7 +201,7 @@ export default function EventsPage() {
                   </div>
                 </div>
                 <div className="featured-right">
-                  <PrizeStack />
+                  <PrizeStack prizes={featured.prizes ?? []} />
                 </div>
               </div>
             </div>
@@ -365,7 +380,6 @@ function LbRow({row}: {row: LeaderboardRow}) {
       <span className="lb-avatar">{row.initials}</span>
       <span className="lb-name-wrap">
         <span className="lb-name">{row.display_name}</span>
-        {row.location && <span className="lb-loc">{row.location}</span>}
       </span>
       <span className="lb-receipts">{row.receipts_count} receipts</span>
       <span className="lb-score">{row.score.toLocaleString()}<span className="unit" style={{fontSize:11,color:"var(--muted)",fontWeight:600,marginLeft:2,fontFamily:"var(--sans)"}}>pts</span></span>
@@ -373,12 +387,27 @@ function LbRow({row}: {row: LeaderboardRow}) {
   );
 }
 
+function slugToBannerClass(slug: string): string {
+  if (slug.includes("cny") || slug.includes("chinese-new-year")) return "cny";
+  if (slug.includes("raya") || slug.includes("ramadan")) return "ramadan";
+  if (slug.includes("merdeka")) return "merdeka";
+  if (slug.includes("deepavali") || slug.includes("diwali")) return "deepavali";
+  if (slug.includes("budget") || slug.includes("tax")) return "budget";
+  return "default";
+}
+
 function EventCard({event}: {event: FpEvent}) {
   const status = eventStatus(event.start_date, event.end_date);
-  const bannerClass = event.banner_color ?? "tax";
+  const bannerClass = slugToBannerClass(event.slug);
+  const prizeTotal = event.prizes?.reduce((s,p)=>s+p.amount,0) ?? 0;
+  const href = status === "ended" ? `/events/${event.slug}/recap` : "#";
   return (
-    <a href="#" className="event-card">
-      <div className={`event-banner ${bannerClass}`}>
+    <a href={href} className="event-card">
+      <div
+        className={`event-banner ${bannerClass}`}
+        style={event.image_url ? {backgroundImage:`url(${event.image_url})`,backgroundSize:"cover",backgroundPosition:"center"} : undefined}
+      >
+        {event.image_url && <div className="event-banner-img-overlay" />}
         <div className="event-banner-pattern" />
         <span className={`event-banner-tag ${status}`}>
           {status === "live" && <span style={{width:5,height:5,borderRadius:"50%",background:"#fff",display:"inline-block"}} />}
@@ -390,8 +419,8 @@ function EventCard({event}: {event: FpEvent}) {
         <div className="event-meta">
           <span><Calendar size={12} /> {formatDate(event.start_date)} – {formatDate(event.end_date)}</span>
         </div>
-        {event.prize_pool && (
-          <div className="event-prize"><span className="currency">RM</span>{event.prize_pool.toLocaleString()} pool</div>
+        {prizeTotal > 0 && (
+          <div className="event-prize"><span className="currency">RM</span>{prizeTotal.toLocaleString()} pool</div>
         )}
         <p className="event-desc">{event.description}</p>
         <div className="event-foot">
@@ -407,16 +436,24 @@ function EventCard({event}: {event: FpEvent}) {
   );
 }
 
-function PrizeStack() {
+function fmtPrize(n: number): string {
+  if (n >= 1000) return (n / 1000).toFixed(0) + "K";
+  return "RM " + n;
+}
+
+function PrizeStack({prizes}: {prizes: Prize[]}) {
+  const p1 = prizes.find(p => p.place === 1);
+  const p2 = prizes.find(p => p.place === 2);
+  const p3 = prizes.find(p => p.place === 3);
   return (
     <div className="prize-stack">
       <div className="prize-confetti" style={{top:"4%",left:"60%",transform:"rotate(35deg)",background:"#FFD89B"}} />
       <div className="prize-confetti" style={{top:"24%",left:"8%",transform:"rotate(-15deg)",background:"#FFE3A8"}} />
       <div className="prize-confetti" style={{bottom:"18%",right:"30%",transform:"rotate(60deg)",background:"#FFFFFF"}} />
       <div className="prize-confetti" style={{bottom:"36%",left:"20%",transform:"rotate(-40deg)",background:"#C9BAFB"}} />
-      <div className="prize-coin c2"><span className="amount">5K</span><span className="label">2nd place</span></div>
-      <div className="prize-coin c1"><span className="amount">15K</span><span className="label">Grand prize</span></div>
-      <div className="prize-coin c3"><span className="amount">2K</span><span className="label">3rd place</span></div>
+      {p2 && <div className="prize-coin c2"><span className="amount">{fmtPrize(p2.amount)}</span><span className="label">2nd place</span></div>}
+      {p1 && <div className="prize-coin c1"><span className="amount">{fmtPrize(p1.amount)}</span><span className="label">Grand prize</span></div>}
+      {p3 && <div className="prize-coin c3"><span className="amount">{fmtPrize(p3.amount)}</span><span className="label">3rd place</span></div>}
     </div>
   );
 }

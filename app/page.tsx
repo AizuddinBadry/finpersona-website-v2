@@ -1,4 +1,5 @@
 import type {Metadata} from "next";
+import {getPlatformStats, fmtCount, fmtCurrency} from "@/lib/stats";
 
 export const metadata: Metadata = {
   title: "Finpersona - AI-native personal finance platform",
@@ -22,7 +23,7 @@ const jsonLd = {
   publisher: {"@type": "Organization", name: "Aexlora Sdn Bhd", url: "https://finpersona.com"},
 };
 
-export default function HomePage() {
+export default function HomePage() { 
   return (
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{__html: JSON.stringify(jsonLd)}} />
@@ -52,7 +53,7 @@ function HeroSection() {
             Track expenses, split bills, plan trips, shop claimables, and maximize LHDN reliefs — all with an AI advisor that actually knows your finances.
           </p>
           <div className="hero-cta">
-            <a className="btn btn-primary" href="#">
+            <a className="btn btn-primary" href="https://app.finpersona.com">
               <span>Start tracking — it&apos;s free</span>
               <span>→</span>
             </a>
@@ -111,12 +112,31 @@ function PhoneMockup() {
   );
 }
 
-function LiveCounters() {
+async function LiveCounters() {
+  const stats = await getPlatformStats();
   const counters = [
-    {label:"Receipts captured",value:"847,239",trend:"+1,840 today"},
-    {label:"Tracked spend",prefix:"RM",value:"142M",trend:"+RM 480k this week"},
-    {label:"LHDN reliefs claimed",prefix:"RM",value:"8.2M",trend:"RM 1,840 avg / user"},
-    {label:"Active Malaysians",value:"38,420",trend:"+12% MoM"},
+    {
+      label: "Receipts captured",
+      value: fmtCount(stats.receiptsTotal),
+      trend: stats.receiptsToday > 0 ? `+${stats.receiptsToday} today` : "updated live",
+    },
+    {
+      label: "Tracked spend",
+      prefix: "RM",
+      value: fmtCurrency(stats.trackedSpendMyr),
+      trend: stats.spendThisWeek > 0 ? `+RM ${fmtCurrency(stats.spendThisWeek)} this week` : "across all users",
+    },
+    {
+      label: "LHDN reliefs claimed",
+      prefix: "RM",
+      value: fmtCurrency(stats.lhdnReliefsMyr),
+      trend: stats.lhdnAvgPerUser > 0 ? `RM ${fmtCurrency(stats.lhdnAvgPerUser)} avg / user` : "from claimable receipts",
+    },
+    {
+      label: "Active Malaysians",
+      value: fmtCount(stats.activeUsers),
+      trend: "and growing",
+    },
   ];
   return (
     <div className="counters">
@@ -144,8 +164,8 @@ function FeaturesSection() {
   return (
     <section className="pillars-section" id="features">
       <div className="container">
-        <div className="section-head">
-          <div className="eyebrow" style={{marginBottom:20}}><span className="eyebrow-dot" />Six features. One app.</div>
+        <div className="section-head" style={{textAlign:"left",margin:"0 0 40px"}}>
+          <div className="eyebrow" style={{marginBottom:16}}><span className="eyebrow-dot" />Six features. One app.</div>
           <h2 className="h2">Everything you do with money — <em>without</em> the busywork.</h2>
         </div>
         <div className="bento">
@@ -264,7 +284,6 @@ function ExpenseCard() {
     {label:"Dining",pct:"78%",color:"linear-gradient(90deg,#D97636,#E89B7A)",amt:"RM 612",cls:"food",icon:<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 11h18l-2 9H5l-2-9z"/><path d="M3 11l1-3h16l1 3"/></svg>},
     {label:"Transport",pct:"52%",color:"linear-gradient(90deg,#1E80B5,#7BB7E0)",amt:"RM 408",cls:"transport",icon:<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M5 17h14l-1.5-7H6.5L5 17z"/><circle cx="8" cy="17" r="2"/><circle cx="16" cy="17" r="2"/></svg>},
     {label:"Shopping",pct:"38%",color:"linear-gradient(90deg,#6E4CE6,#B8A6F5)",amt:"RM 296",cls:"shop",icon:<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M5 8h14l-1 13H6L5 8z"/><path d="M9 8V5a3 3 0 016 0v3"/></svg>},
-    {label:"Coffee",pct:"22%",color:"linear-gradient(90deg,#956B3F,#C8A579)",amt:"RM 168",cls:"coffee",icon:<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 8h13v6a4 4 0 01-4 4H7a4 4 0 01-4-4V8z"/><path d="M16 10h2a3 3 0 010 6h-2"/></svg>},
   ];
   return (
     <div className="bento-card b-expense">
@@ -295,8 +314,8 @@ function AdvisorCard() {
       <p>Plan goals, stress-test purchases, set reminders. Trained on your real spending — not generic advice.</p>
       <div className="bento-visual">
         <div className="advisor-bubble">
-          <strong>You asked:</strong> Can I afford a 4-day Bali trip in July?<br /><br />
-          Yes — comfortably. You have <strong>RM 2,140</strong> of discretionary buffer. A typical 4-day trip runs <strong>RM 1,650</strong>. I&apos;d suggest moving RM 400/wk to your Travel pot starting now.
+          <div className="advisor-q">Can I afford a 4-day Bali trip in July?</div>
+          <div className="advisor-a">Yes — comfortably. You have <strong>RM 2,140</strong> buffer. A typical trip runs <strong>RM 1,650</strong>. Move RM 400/wk to your Travel pot.</div>
         </div>
       </div>
     </div>
