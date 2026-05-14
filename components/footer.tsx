@@ -14,7 +14,7 @@ export default function Footer() {
               <span>Finpersona</span>
             </div>
             <p style={{fontSize:13,color:"var(--muted)",maxWidth:280,margin:0,lineHeight:1.5}}>
-              AI-native personal finance platform. Built in Kuala Lumpur for Malaysians.
+              AI-native personal finance platform.
             </p>
           </div>
           <div className="footer-col">
@@ -39,7 +39,7 @@ export default function Footer() {
           </div>
         </div>
         <div className="footer-bottom">
-          <span>© 2026 Finpersona · Built by <strong style={{color:"var(--ink2)",fontWeight:600}}>Aexlora Sdn Bhd</strong> · Kuala Lumpur</span>
+          <span>© 2026 Finpersona · Built by <strong style={{color:"var(--ink2)",fontWeight:600}}>Aexlora Sdn Bhd (1668346-X)</strong></span>
           <span>Not affiliated with any tax authority. Always verify with LHDN directly.</span>
         </div>
       </div>

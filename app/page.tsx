@@ -389,7 +389,7 @@ function FinalCTASection() {
       <div className="container">
         <div className="final-cta">
           <h2>Ready to keep more of <em>your</em> ringgit?</h2>
-          <p>Join 38,000+ Malaysians already tracking smarter, claiming more, and stressing less about money.</p>
+          <p>Join 1,000+ Malaysians already tracking smarter, claiming more, and stressing less about money.</p>
           <div style={{display:"inline-flex",gap:12,flexWrap:"wrap",justifyContent:"center"}}>
             <a className="btn btn-light" href="#"><span>Get the app — free</span><span>→</span></a>
             <a className="btn" style={{background:"rgba(255,255,255,0.15)",color:"#fff",border:"0.5px solid rgba(255,255,255,0.3)"}} href="/advisors">For financial advisors</a>
