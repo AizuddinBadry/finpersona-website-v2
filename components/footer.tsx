@@ -35,7 +35,7 @@ export default function Footer() {
             <Link href="/privacy-policy">Privacy</Link>
             <Link href="/terms">Terms</Link>
             <Link href="/security">Security</Link>
-            <a href="#">Contact</a>
+            <Link href="/contact">Contact</Link>
           </div>
         </div>
         <div className="footer-bottom">
